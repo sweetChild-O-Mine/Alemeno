@@ -1,0 +1,26 @@
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Docker
+.dockerignore
+
+#
+Alemeno/
+
+# Uploads directory (we don't want to commit uploaded CSVs)
+uploads/
+
+# IDEs / OS
+.vscode/
+.idea/
+.DS_Store
