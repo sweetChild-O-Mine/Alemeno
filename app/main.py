@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import engine, Base
 from app import models, schemas
 from typing import Optional
+from app.worker import process_transaction_file
 
 # create tbale in postgres
 Base.metadata.create_all(bind=engine)
@@ -30,9 +31,15 @@ def upload_csv(
     db.refresh(db_job)
 
     # 3. save the uploaded file to our local disk so the celery worker can read it later
+    import os
+    os.makedirs("/app/uploads", exist_ok=True)
     file_path = f"/app/uploads/{db_job.id}_{file.filename}"
     with open(file_path, 'wb') as buffer:
         buffer.write(file.file.read())
+
+    # tell Celery to start processing it in the background
+    # .delay() is the magic Celery fucntion that pushes it to Redis instead of running it instatntly
+    process_transaction_file.delay(db_job.id, file_path)
 
     return db_job
 
@@ -53,6 +60,30 @@ def get_job_status(job_id: int, db: Session = Depends(get_db)):
         summary = db.query(models.JobSummary).filter(models.JobSummary.job_id == job_id).first()
         if summary:
             response["summary"] = summary
+        
+    return response
+
+
+@app.get("/jobs/{job_id}/results")
+def get_job_results(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    response = {
+        "job_id": job.id,
+        "status": job.status,
+    }
+    
+    # Get all transactions for this job
+    transactions = db.query(models.Transaction).filter(models.Transaction.job_id == job_id).all()
+    response["transactions"] = transactions
+    
+    # Get the AI summary
+    summary = db.query(models.JobSummary).filter(models.JobSummary.job_id == job_id).first()
+    if summary:
+        response["summary"] = summary
         
     return response
 

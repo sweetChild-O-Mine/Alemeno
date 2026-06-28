@@ -16,7 +16,7 @@ engine = create_engine(
 )
 
 # create a SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflash=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # the base class 
 Base = declarative_base()
